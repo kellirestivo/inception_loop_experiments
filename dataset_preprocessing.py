@@ -1,7 +1,7 @@
 import os
 import yaml
 from src.input_handling import get_filename
-from src.data_file_processing import process_mat_file
+from src.data_extraction import process_mat_file
 from src.data_saving import save_as_pickle
 
 def load_config(config_file='pickle_file_paths.yaml'):
