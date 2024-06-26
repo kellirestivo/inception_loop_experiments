@@ -2,6 +2,9 @@ import numpy as np
 import torch
 from tqdm import tqdm
 import datajoint as dj
+from itertools import product
+from scipy.ndimage import shift
+from scipy.ndimage import center_of_mass
 
 from nnfabrik.main import *
 import nnfabrik
@@ -215,4 +218,109 @@ def process_all_units(ensemble_list, selected_indices, MEI_dictionary, param_con
     for ensemble in ensemble_list:
         for unit_index in tqdm(selected_indices):
             process_unit(ensemble, unit_index, MEI_dictionary, param_config, meiMaskDictionary)
+    return meiMaskDictionary
+
+
+def get_all_shifts(mei, start, end, step):
+    x = np.arange(start, end, step)
+    meis = np.zeros((len(x)**2, *mei.shape[-2:]))
+    shifts = np.zeros((len(x)**2, 2))
+    if len(mei.shape) != 2:
+        mei = mei.squeeze()
+    if len(mei.shape) != 2:
+        raise ValueError("the mei must be either a 2d array or a 4d array of size (1, 1, h, w)")
+    
+    for i, (x_i, y_i) in enumerate(product(x,x)):
+        meis[i] = shift(mei, (x_i, y_i))
+        shifts[i] = np.array([x_i, y_i])
+    return meis, shifts
+
+def get_best_shifted_mei(mei, masks, unit_index, gauss_validator_ensemble, data_key, models):
+    """
+    Get the best shifted MEI and corresponding response.
+
+    Parameters:
+    mei (torch.Tensor): The MEI tensor.
+    masks (torch.Tensor): The masks tensor.
+    unit_index (int): The unit index.
+    gauss_validator_ensemble (str): The gauss validator ensemble hash.
+    data_key (str): The data key.
+    models (dict): Dictionary of models.
+
+    Returns:
+    tuple: Best shifted MEI, best shifted response, best shifted mask.
+    """
+    shifted_meis, all_shifts = get_all_shifts(mei.squeeze(), -30, 30, 2)
+    shifted_meis = torch.from_numpy(shifted_meis).to(torch.float32).unsqueeze(1)
+    
+    with torch.no_grad():
+        output = models[gauss_validator_ensemble](shifted_meis.cuda(), data_key=data_key)[..., unit_index].cpu()
+
+    best_shifted_mei_index = np.argmax(output)
+    best_shifted_mei_response = np.max(output.numpy())
+    best_shifted_mask = shift(masks, all_shifts[best_shifted_mei_index])
+    best_masked_mei = shifted_meis[best_shifted_mei_index].squeeze(0)
+    
+    return best_masked_mei, best_shifted_mei_response, best_shifted_mask
+
+def process_unit_best_meis(ensemble, unit_index, meiMaskDictionary, gauss_validator_ensemble, data_key, models):
+    """
+    Process the best MEIs for a single unit in the ensemble.
+
+    Parameters:
+    ensemble (str): Ensemble hash.
+    unit_index (int): Unit index.
+    meiMaskDictionary (dict): Dictionary containing MEI masks.
+    gauss_validator_ensemble (str): The gauss validator ensemble hash.
+    data_key (str): The data key.
+    models (dict): Dictionary of models.
+
+    Returns:
+    dict: Dictionary with best MEI and mask information.
+    """
+    best_masked_meis_unit = []
+    best_masks_unit = []
+    best_shifted_masked_meis_response = []
+    
+    meis = torch.from_numpy(np.array(meiMaskDictionary[ensemble][unit_index]['nonclipped_masked_meis']))
+    masks = torch.from_numpy(np.array(meiMaskDictionary[ensemble][unit_index]['nonclipped_masks']))
+    
+    all_outputs = []
+    for mei, mask in zip(meis, masks):
+        best_masked_mei, best_shifted_mei_response, best_shifted_mask = get_best_shifted_mei(mei, mask, unit_index, gauss_validator_ensemble, data_key, models)
+        best_shifted_masked_meis_response.append(best_shifted_mei_response)
+        best_masked_meis_unit.append(best_masked_mei)
+        best_masks_unit.append(best_shifted_mask)
+        all_outputs.append(best_shifted_mei_response)
+    
+    best_mei_response_index = np.argmax(all_outputs)
+    
+    return {
+        'best_shifted_masked_meis_responses': all_outputs,
+        'best_shifted_masked_meis': best_masked_meis_unit,
+        'best_shifted_masks': best_masks_unit,
+        'single_best_masked_mei': best_masked_meis_unit[best_mei_response_index],
+        'single_best_mask': best_masks_unit[best_mei_response_index],
+        'single_best_dj_key': meiMaskDictionary[ensemble][unit_index]["datajoint_keys"][best_mei_response_index]
+    }
+
+def process_all_units_best_meis(ensemble_list, selected_indices, meiMaskDictionary, gauss_validator_ensemble, data_key, models):
+    """
+    Process the best MEIs for all units in all ensembles.
+
+    Parameters:
+    ensemble_list (list): List of ensemble hashes.
+    selected_indices (list): List of selected unit indices.
+    meiMaskDictionary (dict): Dictionary containing MEI masks.
+    gauss_validator_ensemble (str): The gauss validator ensemble hash.
+    data_key (str): The data key.
+    models (dict): Dictionary of models.
+
+    Returns:
+    dict: Updated MEI mask dictionary with best MEI and mask information.
+    """
+    for ensemble in ensemble_list:
+        for unit_index in tqdm(selected_indices):
+            best_meis_info = process_unit_best_meis(ensemble, unit_index, meiMaskDictionary, gauss_validator_ensemble, data_key, models)
+            meiMaskDictionary[ensemble][unit_index].update(best_meis_info)
     return meiMaskDictionary
