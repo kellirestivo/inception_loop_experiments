@@ -1,0 +1,10 @@
+paths:
+  pickle_paths:
+    - '/mnt/nnfabrik_gpu1/monkey/toliaslab/CSRF19_V4/sua_data'
+    - '/mnt/nnfabrik_gpu3/monkey/toliaslab/CSRF19_V4/sua_data'
+    - '/mnt/nnfabrik_gpu5/monkey/toliaslab/CSRF19_V4/sua_data'
+    - '/mnt/nnfabrik_uriel/monkey/toliaslab/CSRF19_V4/sua_data'
+    - '/data/monkey/toliaslab/CSRF19_V4/neuronal_data'
+    - '/data/monkey/toliaslab/CSRF19_V4/sua_closed_loop/sua_data'
+    - '/mnt/lab/users/kelli/mei/V4_SUA_closed_loop/V4_SUA_closed_loop_pickles'
+    - '/data/monkey/toliaslab/CSRF19_V4/sua_data'
