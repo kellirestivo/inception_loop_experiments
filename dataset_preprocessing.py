@@ -20,7 +20,7 @@ def preprocess_data(config):
     ]
 
         # Generate filename based on the current date
-    todays_file = generate_filename()
+    todays_file = get_filename()
 
     # Process each .mat file in the directory
     for filename in os.listdir(PATH):
