@@ -1,0 +1,33 @@
+version: '2.3'
+services:
+  notebook:
+    privileged: true
+    env_file: .env
+    build:
+      dockerfile: monkey_mei/Dockerfile
+      context: ../
+    ports:
+      - "5001:8888"
+    volumes: 
+      - /tmp:/tmp
+      - .:/src/monkey_mei
+      - ./notebooks:/notebooks
+      - ../nnfabrik:/src/nnfabrik
+      - ../neuralpredictors:/src/neuralpredictors
+      - ../mei:/src/mei
+      - ../nnvision:/src/nnvision
+      - ../monkey_scale:/src/monkey_scale
+      - ../CORnet:/src/CORnet
+      - /Volumes/stor01:/Volumes/stor01
+     # - /mnt/scratch09/nnfabrik_dataset:/data
+
+    environment:
+      - DISPLAY=$DISPLAY
+    entrypoint:
+       - jupyter 
+       - lab
+       - --ip=0.0.0.0
+       - --allow-root
+       - --NotebookApp.token=''
+    working_dir: /src
+    ipc: host
