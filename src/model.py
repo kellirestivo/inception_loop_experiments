@@ -19,9 +19,9 @@ class TaskDrivenCore(nn.Module):
         x = self.layer3(x)
         return x
     
-class MultipleFullGaussian2d(nn.Module):
+class Gaussian2dReadout(nn.Module):
     def __init__(self, in_shape, outdims, bias, init_mu_range, init_sigma_range, gauss_type):
-        super(MultipleFullGaussian2d, self).__init__()
+        super(Gaussian2dReadout, self).__init__()
         self.outdims = outdims
         self.in_shape = in_shape
         self.gauss_type = gauss_type
@@ -85,7 +85,7 @@ class CustomModel(nn.Module):
     def __init__(self, config):
         super(CustomModel, self).__init__()
         self.core = TaskDrivenCore(config)
-        self.readout = MultipleFullGaussian2d(
+        self.readout = Gaussian2dReadout(
             in_shape=(256, 28, 28),
             outdims=1,
             bias=config['readout_bias'],
