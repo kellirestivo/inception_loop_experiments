@@ -8,6 +8,14 @@ from src.model_training_utils import save_checkpoint, load_checkpoint
 import os
 
 def train_model(model, dataloader, config):
+    """
+    Train the model.
+
+    Args:
+        model (nn.Module): Model to train.
+        dataloader (DataLoader): DataLoader for the training data.
+        config (dict): Configuration dictionary for training.
+    """
     criterion = nn.PoissonNLLLoss()
     optimizer = optim.Adam(model.parameters(), lr=config['lr_init'])
     writer = SummaryWriter()  # For logging
@@ -33,6 +41,14 @@ def train_model(model, dataloader, config):
     print('Training complete')
 
 def evaluate_model(model, dataloader, config):
+    """
+    Evaluate the model.
+
+    Args:
+        model (nn.Module): Model to evaluate.
+        dataloader (DataLoader): DataLoader for the evaluation data.
+        config (dict): Configuration dictionary for evaluation.
+    """
     model.eval()
     total_correct = 0
     total_samples = 0

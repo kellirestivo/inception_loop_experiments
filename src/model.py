@@ -3,7 +3,21 @@ import torch.nn as nn
 import torchvision.models as models
 
 class TaskDrivenCore(nn.Module):
+    """
+    Core model based on ResNet-50 for feature extraction.
+    
+    Attributes:
+        config (dict): Configuration dictionary for the model.
+        resnet (nn.Module): ResNet-50 model.
+        layer3 (nn.Module): Layer3 of the ResNet-50 model.
+    """
     def __init__(self, config):
+        """
+        Initialize the core model with configuration parameters.
+
+        Args:
+            config (dict): Configuration dictionary for the model.
+        """
         super(TaskDrivenCore, self).__init__()
         self.config = config
         self.resnet = models.resnet50(pretrained=config['pretrained'])
@@ -20,6 +34,21 @@ class TaskDrivenCore(nn.Module):
         return x
     
 class Gaussian2dReadout(nn.Module):
+    """
+    Readout layer that applies a Gaussian filter over feature maps.
+    
+    Attributes:
+        in_shape (tuple): Shape of the input.
+        outdims (int): Number of output dimensions.
+        bias (bool): Whether to include bias.
+        init_mu_range (tuple): Range for initializing mu.
+        init_sigma_range (tuple): Range for initializing sigma.
+        gauss_type (str): Type of Gaussian ('isotropic' or 'anisotropic').
+        mu (nn.Parameter): Mu parameter.
+        sigma (nn.Parameter): Sigma parameter.
+        weight (nn.Parameter): Weight parameter.
+        bias (nn.Parameter): Bias parameter.
+    """
     def __init__(self, in_shape, outdims, bias, init_mu_range, init_sigma_range, gauss_type):
         super(Gaussian2dReadout, self).__init__()
         self.outdims = outdims
