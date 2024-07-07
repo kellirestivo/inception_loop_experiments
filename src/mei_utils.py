@@ -6,6 +6,8 @@ from itertools import product
 from scipy.ndimage import shift
 from scipy.ndimage import center_of_mass
 
+from natural_images_utils import rescale_image
+
 from nnfabrik.main import *
 import nnfabrik
 from nnfabrik import main, builder
@@ -66,11 +68,11 @@ def fetch_mei_from_db(mei_key):
     """
     Fetch MEI from the database using the provided key.
 
-    Parameters:
-    mei_key (dict): The key to query the MEI.
+    Args:
+        mei_key (dict): The key to query the MEI.
 
     Returns:
-    numpy.ndarray: The fetched MEI if found, None otherwise.
+        numpy.ndarray: The fetched MEI if found, None otherwise.
     """
 
     try:
@@ -90,12 +92,12 @@ def get_unit_index(unit_key, dataset_hash):
     """
     Retrieve the unit index from the Recording.Units table.
 
-    Parameters:
-    unit_key (dict): The key to query the unit.
-    dataset_hash (str): The dataset hash.
+    Args:
+        unit_key (dict): The key to query the unit.
+        dataset_hash (str): The dataset hash.
 
     Returns:
-    int: The unit index if found, None otherwise.
+        int: The unit index if found, None otherwise.
     """
     try:
         unit_index = (Recording.Units & dict(unit_id=unit_key['unit_id'], dataset_hash=dataset_hash)).fetch1('unit_index')
@@ -108,16 +110,16 @@ def process_meis(selected_keys, seed_list, ensemble_list, method_hash, dataset_h
     """
     Process MEIs for each model ensemble and model seed.
 
-    Parameters:
-    selected_keys (list): List of selected unit keys.
-    seed_list (list): List of MEI seeds.
-    ensemble_list (list): List of ensemble hashes.
-    method_hash (str): Method hash.
-    dataset_hash (str): Dataset hash.
-    data_key (str): Data key.
+    Args:
+        selected_keys (list): List of selected unit keys.
+        seed_list (list): List of MEI seeds.
+        ensemble_list (list): List of ensemble hashes.
+        method_hash (str): Method hash.
+        dataset_hash (str): Dataset hash.
+        data_key (str): Data key.
 
     Returns:
-    dict: Dictionary containing the processed MEIs.
+        dict: Dictionary containing the processed MEIs.
     """
 
     MEI_dictionary = {i: {} for i in ensemble_list}
@@ -150,12 +152,12 @@ def initialize_mei_mask_dictionary(ensemble_list, selected_indices):
     """
     Initialize the MEI mask dictionary.
 
-    Parameters:
-    ensemble_list (list): List of ensemble hashes.
-    selected_indices (list): List of selected unit indices.
+    Args:
+        ensemble_list (list): List of ensemble hashes.
+        selected_indices (list): List of selected unit indices.
 
     Returns:
-    dict: Initialized MEI mask dictionary.
+        dict: Initialized MEI mask dictionary.
     """
     return {ensemble: {unit_index: {} for unit_index in selected_indices} for ensemble in ensemble_list}
 
@@ -163,15 +165,15 @@ def generate_masks_for_unit(MEI_dictionary, ensemble, unit_index, zscore_thresh,
     """
     Generate masks for a specific unit in the ensemble.
 
-    Parameters:
-    MEI_dictionary (dict): Dictionary containing MEIs.
-    ensemble (str): Ensemble hash.
-    unit_index (int): Unit index.
-    zscore_thresh (float): Z-score threshold for mask generation.
-    gaussian_sigma (float): Gaussian sigma for mask generation.
+    Args:
+        MEI_dictionary (dict): Dictionary containing MEIs.
+        ensemble (str): Ensemble hash.
+        unit_index (int): Unit index.
+        zscore_thresh (float): Z-score threshold for mask generation.
+        gaussian_sigma (float): Gaussian sigma for mask generation.
 
     Returns:
-    list: List of generated masks.
+        list: List of generated masks.
     """
     return [
         generate_mask(i['image'], zscore_thresh=zscore_thresh, gaussian_sigma=gaussian_sigma)
@@ -179,6 +181,15 @@ def generate_masks_for_unit(MEI_dictionary, ensemble, unit_index, zscore_thresh,
     ]
 
 def get_percentage_of_clipping(mask, threshold=.25):
+    """
+    Get percentage of MEI mask that is clipped off based on z-score threshold
+
+    Args:
+        mask (np.ndarray): MEI mask
+        threshold (float): z-score threshold 
+    Returns:
+        float: percentage of mask that is clipped
+    """
     a = (mask[:, -1:] > threshold).sum() / mask[:, -1:].size
     b = (mask[:, :1] > threshold).sum() / mask[:, :1].size
     c = (mask[:1, :] > threshold).sum() / mask[:1, :].size
@@ -190,30 +201,30 @@ def get_non_clipped_masks_indices(masks, threshold=0.1):
     """
     Get indices of non-clipped masks.
 
-    Parameters:
-    masks (list): List of masks.
-    threshold (float): Clipping threshold.
+    Args:
+        masks (list): List of masks.
+        threshold (float): Clipping threshold.
 
     Returns:
-    list: Indices of non-clipped masks.
+        list: Indices of non-clipped masks.
     """
     percentage_clipped = [get_percentage_of_clipping(mask) for mask in masks]
     return [i for i, percentage in enumerate(percentage_clipped) if percentage < threshold]
 
 
-def process_unit(ensemble, unit_index, MEI_dictionary, param_config, meiMaskDictionary):
+def process_unit(ensemble, unit_index, MEI_dictionary, param_config, mei_mask_dictionary):
     """
     Process a single unit in the ensemble.
 
-    Parameters:
-    ensemble (str): Ensemble hash.
-    unit_index (int): Unit index.
-    MEI_dictionary (dict): Dictionary containing MEIs.
-    param_config (dict): Parameter configuration.
-    meiMaskDictionary (dict): Dictionary to store processed results.
+    Args:
+        ensemble (str): Ensemble hash.
+        unit_index (int): Unit index.
+        MEI_dictionary (dict): Dictionary containing MEIs.
+        param_config (dict): Parameter configuration.
+        mei_mask_dictionary (dict): Dictionary to store processed results.
 
     Returns:
-    None
+        None
    """
     masks = generate_masks_for_unit(MEI_dictionary, ensemble, unit_index, param_config['zscore_thresh'], param_config['gaussian_sigma'])
     non_clipped_masks_indices = get_non_clipped_masks_indices(masks)
@@ -230,7 +241,7 @@ def process_unit(ensemble, unit_index, MEI_dictionary, param_config, meiMaskDict
     masked_norms = [get_norm(i).item() for i in masked_meis]
     datajoint_keys = [i['datajoint_key'] for i in MEI_dictionary[ensemble][unit_index]]
 
-    meiMaskDictionary[ensemble][unit_index].update({
+    mei_mask_dictionary[ensemble][unit_index].update({
         'nonclipped_masked_meis': [masked_meis[i] for i in non_clipped_masks_indices],
         'nonclipped_masks': [masks[i] for i in non_clipped_masks_indices],
         'nonclipped_masked_norms': [masked_norms[i] for i in non_clipped_masks_indices],
@@ -247,20 +258,20 @@ def process_all_units(ensemble_list, selected_indices, MEI_dictionary, param_con
     """
     Process all units in all ensembles.
 
-    Parameters:
-    ensemble_list (list): List of ensemble hashes.
-    selected_indices (list): List of selected unit indices.
-    MEI_dictionary (dict): Dictionary containing MEIs.
-    param_config (dict): Parameter configuration.
+    Args:
+        ensemble_list (list): List of ensemble hashes.
+        selected_indices (list): List of selected unit indices.
+        MEI_dictionary (dict): Dictionary containing MEIs.
+        param_config (dict): Parameter configuration.
 
     Returns:
-    dict: Dictionary containing processed MEI masks.
+        dict: Dictionary containing processed MEI masks.
     """
-    meiMaskDictionary = initialize_mei_mask_dictionary(ensemble_list, selected_indices)
+    mei_mask_dictionary = initialize_mei_mask_dictionary(ensemble_list, selected_indices)
     for ensemble in ensemble_list:
         for unit_index in tqdm(selected_indices):
-            process_unit(ensemble, unit_index, MEI_dictionary, param_config, meiMaskDictionary)
-    return meiMaskDictionary
+            process_unit(ensemble, unit_index, MEI_dictionary, param_config, mei_mask_dictionary)
+    return mei_mask_dictionary
 
 
 def get_all_shifts(mei, start, end, step):
@@ -281,16 +292,16 @@ def get_best_shifted_mei(mei, masks, unit_index, gauss_validator_ensemble, data_
     """
     Get the best shifted MEI and corresponding response.
 
-    Parameters:
-    mei (torch.Tensor): The MEI tensor.
-    masks (torch.Tensor): The masks tensor.
-    unit_index (int): The unit index.
-    gauss_validator_ensemble (str): The gauss validator ensemble hash.
-    data_key (str): The data key.
-    models (dict): Dictionary of models.
+    Args:
+        mei (torch.Tensor): The MEI tensor.
+        masks (torch.Tensor): The masks tensor.
+        unit_index (int): The unit index.
+        gauss_validator_ensemble (str): The gauss validator ensemble hash.
+        data_key (str): The data key.
+        models (dict): Dictionary of models.
 
     Returns:
-    tuple: Best shifted MEI, best shifted response, best shifted mask.
+        tuple: Best shifted MEI, best shifted response, best shifted mask.
     """
     shifted_meis, all_shifts = get_all_shifts(mei.squeeze(), -30, 30, 2)
     shifted_meis = torch.from_numpy(shifted_meis).to(torch.float32).unsqueeze(1)
@@ -305,27 +316,27 @@ def get_best_shifted_mei(mei, masks, unit_index, gauss_validator_ensemble, data_
     
     return best_masked_mei, best_shifted_mei_response, best_shifted_mask
 
-def process_unit_best_meis(ensemble, unit_index, meiMaskDictionary, gauss_validator_ensemble, data_key, models):
+def process_unit_best_meis(ensemble, unit_index, mei_mask_dictionary, gauss_validator_ensemble, data_key, models):
     """
     Process the best MEIs for a single unit in the ensemble.
 
-    Parameters:
-    ensemble (str): Ensemble hash.
-    unit_index (int): Unit index.
-    meiMaskDictionary (dict): Dictionary containing MEI masks.
-    gauss_validator_ensemble (str): The gauss validator ensemble hash.
-    data_key (str): The data key.
-    models (dict): Dictionary of models.
+    Args:
+        ensemble (str): Ensemble hash.
+        unit_index (int): Unit index.
+        mei_mask_dictionary (dict): Dictionary containing MEI masks.
+        gauss_validator_ensemble (str): The gauss validator ensemble hash.
+        data_key (str): The data key.
+        models (dict): Dictionary of models.
 
     Returns:
-    dict: Dictionary with best MEI and mask information.
+        dict: Dictionary with best MEI and mask information.
     """
     best_masked_meis_unit = []
     best_masks_unit = []
     best_shifted_masked_meis_response = []
     
-    meis = torch.from_numpy(np.array(meiMaskDictionary[ensemble][unit_index]['nonclipped_masked_meis']))
-    masks = torch.from_numpy(np.array(meiMaskDictionary[ensemble][unit_index]['nonclipped_masks']))
+    meis = torch.from_numpy(np.array(mei_mask_dictionary[ensemble][unit_index]['nonclipped_masked_meis']))
+    masks = torch.from_numpy(np.array(mei_mask_dictionary[ensemble][unit_index]['nonclipped_masks']))
     
     all_outputs = []
     for mei, mask in zip(meis, masks):
@@ -343,26 +354,50 @@ def process_unit_best_meis(ensemble, unit_index, meiMaskDictionary, gauss_valida
         'best_shifted_masks': best_masks_unit,
         'single_best_masked_mei': best_masked_meis_unit[best_mei_response_index],
         'single_best_mask': best_masks_unit[best_mei_response_index],
-        'single_best_dj_key': meiMaskDictionary[ensemble][unit_index]["datajoint_keys"][best_mei_response_index]
+        'single_best_dj_key': mei_mask_dictionary[ensemble][unit_index]["datajoint_keys"][best_mei_response_index]
     }
 
-def process_all_units_best_meis(ensemble_list, selected_indices, meiMaskDictionary, gauss_validator_ensemble, data_key, models):
+def process_all_units_best_meis(ensemble_list, selected_indices, mei_mask_dictionary, gauss_validator_ensemble, data_key, models):
     """
     Process the best MEIs for all units in all ensembles.
 
-    Parameters:
-    ensemble_list (list): List of ensemble hashes.
-    selected_indices (list): List of selected unit indices.
-    meiMaskDictionary (dict): Dictionary containing MEI masks.
-    gauss_validator_ensemble (str): The gauss validator ensemble hash.
-    data_key (str): The data key.
-    models (dict): Dictionary of models.
+    Args:
+        ensemble_list (list): List of ensemble hashes.
+        selected_indices (list): List of selected unit indices.
+        mei_mask_dictionary (dict): Dictionary containing MEI masks.
+        gauss_validator_ensemble (str): The gauss validator ensemble hash.
+        data_key (str): The data key.
+        models (dict): Dictionary of models.
 
     Returns:
-    dict: Updated MEI mask dictionary with best MEI and mask information.
+        dict: Updated MEI mask dictionary with best MEI and mask information.
     """
     for ensemble in ensemble_list:
         for unit_index in tqdm(selected_indices):
-            best_meis_info = process_unit_best_meis(ensemble, unit_index, meiMaskDictionary, gauss_validator_ensemble, data_key, models)
-            meiMaskDictionary[ensemble][unit_index].update(best_meis_info)
-    return meiMaskDictionary
+            best_meis_info = process_unit_best_meis(ensemble, unit_index, mei_mask_dictionary, gauss_validator_ensemble, data_key, models)
+            mei_mask_dictionary[ensemble][unit_index].update(best_meis_info)
+    return mei_mask_dictionary
+
+def process_for_presentation(img, monitor_scale_factor=11.4, img_mean=124.34, img_std=70.28):
+    """
+    Process the best MEIs for all units in all ensembles.
+
+    Args:
+        img (np.ndarray): experiment image to be processed
+        monitor_scale_factor (float): factor to scale image up to monitor dimensions
+        img_mean (float): mean of images in training set
+        img_std (float): std of images in training set
+
+    Returns:
+        np.ndarray: final processed image
+    """
+    # upscale, convert, clip, change type
+    upsampled_image = rescale_image(img, monitor_scale_factor)
+
+    #Convert image to pixel space
+    convertedImage = upsampled_image * img_std + img_mean
+
+    # Convert image to 8-bit
+    finalImage = np.round(convertedImage).clip(0,255).astype('uint8')
+
+    return finalImage
