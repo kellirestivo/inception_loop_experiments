@@ -19,6 +19,48 @@ from nnvision.tables.from_mei import MEI
 from nnvision.utility.experiment_helpers.mei_masks import generate_mask
 from nnvision.utility.experiment_helpers.image_processing import get_norm, re_norm
 
+schema = CustomSchema(dj.config.get('nnfabrik.schema_name', 'nnfabrik_core'))
+
+if not 'stores' in dj.config:
+    dj.config['stores'] = {}
+dj.config['stores'] = {
+  'minio': {
+    'protocol': 'file',
+    'location': '/mnt/dj-stor01/',
+    'stage': '/mnt/dj-stor01/'
+  }
+}
+
+
+@schema
+class RFCLMaskedControl(dj.Manual):
+    definition = """
+    -> StaticImage.Image
+    cl_image_id          : int
+    ---
+    image_mask           : longblob                   # mask from MEI used for controls
+    image_mask_key       : longblob
+    image                : longblob
+    """
+
+@schema
+class RFShiftCLMaskedMEI(dj.Manual):
+    definition = """
+    cl_image_id          : int
+    method_fn            : varchar(64)                  # name of the method function
+    method_hash          : varchar(32)                  # hash of the method config
+    dataset_fn           : varchar(64)                  # name of the dataset loader function
+    dataset_hash         : varchar(64)                  # hash of the configuration object
+    ensemble_hash        : char(32)                     # the hash of the ensemble
+    data_key             : varchar(64)                  # 
+    unit_id              : int                          # 
+    unit_type            : int                          # 
+    mei_seed             : tinyint unsigned             # MEI seed
+    ---
+    image_mask           : longblob
+    shift                : longblob
+    image                : longblob
+    """
 
 def fetch_mei_from_db(mei_key):
     """
