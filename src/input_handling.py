@@ -1,3 +1,6 @@
+class InvalidCoordinateError(Exception):
+    pass
+
 def get_filename():
     """
     Prompts user for root filename of current experiment.
@@ -25,14 +28,14 @@ def get_dotmap_position(monitor_x=1920, monitor_y=1080):
             user_input_x = int(input("Please enter the x coordinate (in monitor space 1920x1080): "))
             user_input_y = int(input("Please enter the y coordinate (in monitor space 1920x1080): "))
             
-            if 0 <= user_input_x <= monitor_x and 0 <= user_input_y <= monitor_y:
-                break
-            else:
-                print("Coordinates must be within the range (0, 0) to (1920, 1080). Please try again.")
+            if not (0 <= user_input_x <= monitor_x and 0 <= user_input_y <= monitor_y):
+                raise InvalidCoordinateError(f"Coordinates must be within the range (0, 0) to ({monitor_x}, {monitor_y}).")
+
+            break
         except ValueError:
-            print("Invalid input. Please enter integer values for the coordinates.")
+            raise ValueError("Invalid input. Please enter integer values for the coordinates.")
+        except InvalidCoordinateError as e:
+            print(e)
 
     dotmap_position = (user_input_x, user_input_y)
-    print(f"Dotmap position: {dotmap_position}")
-
     return dotmap_position
