@@ -226,7 +226,7 @@ def select_top_images(max_responses, best_masks, best_mei_masks, datajoint_keys_
         'datajoint_keys': selected_datajoint_keys
     }
 
-def process_all_units_masked_images(ensemble, selected_indices, transformed_images, mei_mask_dictionary, naturalImagesDictionary, models, data_key, n_best_images_selected):
+def process_all_units_masked_images(ensemble, selected_indices, transformed_images, mei_mask_dictionary, natural_images_dictionary, models, data_key, n_best_images_selected):
     """
     Process masked images for all units in an ensemble.
 
@@ -235,7 +235,7 @@ def process_all_units_masked_images(ensemble, selected_indices, transformed_imag
         selected_indices (list): List of selected unit indices.
         transformed_images (list): List of transformed images.
         mei_mask_dictionary (dict): Dictionary containing MEI masks.
-        naturalImagesDictionary (dict): Dictionary containing natural images.
+        natural_images_dictionary (dict): Dictionary containing natural images.
         models (dict): Dictionary of models.
         data_key (str): The data key.
         n_best_images_selected (int): Number of best images to select.
@@ -250,8 +250,8 @@ def process_all_units_masked_images(ensemble, selected_indices, transformed_imag
 
     for unit_index in tqdm(selected_indices):
         masks = mei_mask_dictionary[ensemble][unit_index]['best_shifted_masks']
-        masked_renormed_natural_images = naturalImagesDictionary[ensemble][unit_index]['images']
-        all_datajoint_keys = naturalImagesDictionary[ensemble][unit_index]['datajoint_keys']
+        masked_renormed_natural_images = natural_images_dictionary[ensemble][unit_index]['images']
+        all_datajoint_keys = natural_images_dictionary[ensemble][unit_index]['datajoint_keys']
         datajoint_keys_best_mask = np.array(all_datajoint_keys[0:5000])
 
         best_masks, best_mei_masks, max_responses, all_natural_image_responses = process_masked_images(
