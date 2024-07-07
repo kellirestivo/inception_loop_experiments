@@ -1,19 +1,52 @@
 import torch
 from tqdm import tqdm
 import numpy as np
+from skimage.transform import rescale
+
 import nnvision
 from nnvision.utility.experiment_helpers.image_processing import re_norm
 
+
+def rescale_image(image, scale):
+    """
+    Rescales the image by the specified scale factor; adapted from the transformations defined within the
+    ImageCache class; makes use of skimage.transform.rescale to interpolate the image
+
+    Args:
+        image (np.ndarray): input image
+        scale (float or tuple of floats): specified scale factor
+
+
+        mode (str): what to do to values outside the boundaries of the input
+        multichannel (bool): whether the last axis of the image should be interpreted as channels or spatial dimension
+        anti_aliasing (bool): whether or not to Gaussian blur the image before interpolation to avoid aliasing artifacts
+        preserve_range (bool): whether to keep original range of values
+    Returns:
+        np.ndarray: rescaled image
+    """
+
+    rescale_fn = lambda x, s: rescale(
+        x,
+        s,
+        mode="reflect",
+        multichannel=False,
+        anti_aliasing=False,
+        preserve_range=True,
+    ).astype(x.dtype)
+
+    image = image if scale == 1 else rescale_fn(image, scale)
+
+    return image
 def initialize_natural_images_dictionary(ensemble, selected_indices):
     """
     Initialize the natural images dictionary.
 
-    Parameters:
-    ensemble (str): Ensemble hash.
-    selected_indices (list): List of selected unit indices.
+    Args:
+        ensemble (str): Ensemble hash.
+        selected_indices (list): List of selected unit indices.
 
     Returns:
-    dict: Initialized natural images dictionary.
+        dict: Initialized natural images dictionary.
     """
     return {ensemble: {unit_index: {} for unit_index in selected_indices}}
 
@@ -21,15 +54,15 @@ def apply_mask_to_images(transformed_images, masks, h, w, norm_value=19):
     """
     Apply masks to all transformed images and renormalize them.
 
-    Parameters:
-    transformed_images (list): List of transformed images.
-    masks (torch.Tensor): Tensor of masks.
-    h (int): Height of the images.
-    w (int): Width of the images.
-    norm_value (int): Normalization value.
+    Args:
+        transformed_images (list): List of transformed images.
+        masks (torch.Tensor): Tensor of masks.
+        h (int): Height of the images.
+        w (int): Width of the images.
+        norm_value (int): Normalization value.
 
     Returns:
-    torch.Tensor: Tensor of masked and renormalized images.
+        torch.Tensor: Tensor of masked and renormalized images.
     """
     num_images = len(transformed_images)
     num_masks = len(masks)
@@ -41,22 +74,22 @@ def apply_mask_to_images(transformed_images, masks, h, w, norm_value=19):
     
     return masked_images
 
-def create_datajoint_keys(masks, transformed_images, meiMaskDictionary, ensemble, unit_index):
+def create_datajoint_keys(masks, transformed_images, mei_mask_dictionary, ensemble, unit_index):
     """
     Create DataJoint keys for each masked image.
 
-    Parameters:
-    masks (torch.Tensor): Tensor of masks.
-    transformed_images (list): List of transformed images.
-    meiMaskDictionary (dict): Dictionary containing MEI masks.
-    ensemble (str): Ensemble hash.
-    unit_index (int): Unit index.
+    Args:
+        masks (torch.Tensor): Tensor of masks.
+        transformed_images (list): List of transformed images.
+        mei_mask_dictionary (dict): Dictionary containing MEI masks.
+        ensemble (str): Ensemble hash.
+        unit_index (int): Unit index.
 
     Returns:
-    list: List of DataJoint keys.
+        list: List of DataJoint keys.
     """
     keys = []
-    selected_keys = [meiMaskDictionary[ensemble][unit_index]['datajoint_keys'][i] for i in range(len(masks))]
+    selected_keys = [mei_mask_dictionary[ensemble][unit_index]['datajoint_keys'][i] for i in range(len(masks))]
     
     for i, mask in enumerate(masks):
         for j, image in enumerate(transformed_images):
@@ -67,51 +100,51 @@ def create_datajoint_keys(masks, transformed_images, meiMaskDictionary, ensemble
     
     return keys
 
-def process_natural_images_for_unit(unit_index, transformed_images, meiMaskDictionary, ensemble, h, w, norm_value=19):
+def process_natural_images_for_unit(unit_index, transformed_images, mei_mask_dictionary, ensemble, h, w, norm_value=19):
     """
     Process natural images for a single unit.
 
-    Parameters:
-    unit_index (int): Unit index.
-    transformed_images (list): List of transformed images.
-    meiMaskDictionary (dict): Dictionary containing MEI masks.
-    ensemble (str): Ensemble hash.
-    h (int): Height of the images.
-    w (int): Width of the images.
-    norm_value (int): Normalization value.
+    Args:
+        unit_index (int): Unit index.
+        transformed_images (list): List of transformed images.
+        mei_mask_dictionary (dict): Dictionary containing MEI masks.
+        ensemble (str): Ensemble hash.
+        h (int): Height of the images.
+        w (int): Width of the images.
+        norm_value (int): Normalization value.
 
     Returns:
-    dict: Dictionary containing masked images and DataJoint keys.
+        dict: Dictionary containing masked images and DataJoint keys.
     """
-    masks = torch.from_numpy(np.array(meiMaskDictionary[ensemble][unit_index]['best_shifted_masks']))
+    masks = torch.from_numpy(np.array(mei_mask_dictionary[ensemble][unit_index]['best_shifted_masks']))
     masked_images = apply_mask_to_images(transformed_images, masks, h, w, norm_value)
-    datajoint_keys = create_datajoint_keys(masks, transformed_images, meiMaskDictionary, ensemble, unit_index)
+    datajoint_keys = create_datajoint_keys(masks, transformed_images, mei_mask_dictionary, ensemble, unit_index)
     
     return {
         'images': masked_images,
         'datajoint_keys': datajoint_keys
     }
 
-def process_all_units_natural_images(ensemble, selected_indices, transformed_images, meiMaskDictionary, h, w, norm_value=19):
+def process_all_units_natural_images(ensemble, selected_indices, transformed_images, mei_mask_dictionary, h, w, norm_value=19):
     """
     Process natural images for all units in an ensemble.
 
-    Parameters:
-    ensemble (str): Ensemble hash.
-    selected_indices (list): List of selected unit indices.
-    transformed_images (list): List of transformed images.
-    meiMaskDictionary (dict): Dictionary containing MEI masks.
-    h (int): Height of the images.
-    w (int): Width of the images.
-    norm_value (int): Normalization value.
+    Args:
+        ensemble (str): Ensemble hash.
+        selected_indices (list): List of selected unit indices.
+        transformed_images (list): List of transformed images.
+        mei_mask_dictionary (dict): Dictionary containing MEI masks.
+        h (int): Height of the images.
+        w (int): Width of the images.
+        norm_value (int): Normalization value.
 
     Returns:
-    dict: Updated natural images dictionary with masked images and DataJoint keys.
+        dict: Updated natural images dictionary with masked images and DataJoint keys.
     """
     natural_images_dict = initialize_natural_images_dictionary(ensemble, selected_indices)
     
     for unit_index in tqdm(selected_indices):
-        processed_data = process_natural_images_for_unit(unit_index, transformed_images, meiMaskDictionary, ensemble, h, w, norm_value)
+        processed_data = process_natural_images_for_unit(unit_index, transformed_images, mei_mask_dictionary, ensemble, h, w, norm_value)
         natural_images_dict[ensemble][unit_index].update(processed_data)
     
     return natural_images_dict
@@ -122,12 +155,12 @@ def initialize_masked_renormed_image_dict(ensemble, selected_indices):
     """
     Initialize the masked renormed image dictionary.
 
-    Parameters:
-    ensemble (str): Ensemble hash.
-    selected_indices (list): List of selected unit indices.
+    Args:
+        ensemble (str): Ensemble hash.
+        selected_indices (list): List of selected unit indices.
 
     Returns:
-    dict: Initialized masked renormed image dictionary.
+        dict: Initialized masked renormed image dictionary.
     """
     return {ensemble: {unit_index: {} for unit_index in selected_indices}}
 
@@ -135,16 +168,16 @@ def process_masked_images(unit_index, masks, masked_renormed_natural_images, mod
     """
     Process masked images for a single unit.
 
-    Parameters:
-    unit_index (int): Unit index.
-    masks (np.array): Array of masks.
-    masked_renormed_natural_images (torch.Tensor): Tensor of masked renormed natural images.
-    models (dict): Dictionary of models.
-    ensemble (str): Ensemble hash.
-    data_key (str): The data key.
+    Args:
+        unit_index (int): Unit index.
+        masks (np.array): Array of masks.
+        masked_renormed_natural_images (torch.Tensor): Tensor of masked renormed natural images.
+        models (dict): Dictionary of models.
+        ensemble (str): Ensemble hash.
+        data_key (str): The data key.
 
     Returns:
-    dict: Dictionary containing best masks, best MEI masks, max responses, and all responses.
+        dict: Dictionary containing best masks, best MEI masks, max responses, and all responses.
     """
     n_total_natural_images, h, w = masked_renormed_natural_images.shape[0], masked_renormed_natural_images.shape[2], masked_renormed_natural_images.shape[3]
     best_masks = np.zeros((n_total_natural_images, h, w))
@@ -170,15 +203,15 @@ def select_top_images(max_responses, best_masks, best_mei_masks, datajoint_keys_
     """
     Select the top images based on the maximum responses.
 
-    Parameters:
-    max_responses (np.array): Array of maximum responses.
-    best_masks (np.array): Array of best masks.
-    best_mei_masks (np.array): Array of best MEI masks.
-    datajoint_keys_best_mask (np.array): Array of DataJoint keys.
-    n_best_images_selected (int): Number of best images to select.
+    Args:
+        max_responses (np.array): Array of maximum responses.
+        best_masks (np.array): Array of best masks.
+        best_mei_masks (np.array): Array of best MEI masks.
+        datajoint_keys_best_mask (np.array): Array of DataJoint keys.
+        n_best_images_selected (int): Number of best images to select.
 
     Returns:
-    dict: Dictionary containing top masks, top responses, top MEI masks, and selected DataJoint keys.
+        dict: Dictionary containing top masks, top responses, top MEI masks, and selected DataJoint keys.
     """
     best_image_argsort = np.flipud(np.argsort(max_responses))[:n_best_images_selected]
     top_responses = max_responses[best_image_argsort]
@@ -193,22 +226,22 @@ def select_top_images(max_responses, best_masks, best_mei_masks, datajoint_keys_
         'datajoint_keys': selected_datajoint_keys
     }
 
-def process_all_units_masked_images(ensemble, selected_indices, transformed_images, meiMaskDictionary, naturalImagesDictionary, models, data_key, n_best_images_selected):
+def process_all_units_masked_images(ensemble, selected_indices, transformed_images, mei_mask_dictionary, naturalImagesDictionary, models, data_key, n_best_images_selected):
     """
     Process masked images for all units in an ensemble.
 
-    Parameters:
-    ensemble (str): Ensemble hash.
-    selected_indices (list): List of selected unit indices.
-    transformed_images (list): List of transformed images.
-    meiMaskDictionary (dict): Dictionary containing MEI masks.
-    naturalImagesDictionary (dict): Dictionary containing natural images.
-    models (dict): Dictionary of models.
-    data_key (str): The data key.
-    n_best_images_selected (int): Number of best images to select.
+    Args:
+        ensemble (str): Ensemble hash.
+        selected_indices (list): List of selected unit indices.
+        transformed_images (list): List of transformed images.
+        mei_mask_dictionary (dict): Dictionary containing MEI masks.
+        naturalImagesDictionary (dict): Dictionary containing natural images.
+        models (dict): Dictionary of models.
+        data_key (str): The data key.
+        n_best_images_selected (int): Number of best images to select.
 
     Returns:
-    dict: Updated masked renormed image dictionary with best masks and responses.
+        dict: Updated masked renormed image dictionary with best masks and responses.
     """
     masked_renormed_image_dict = initialize_masked_renormed_image_dict(ensemble, selected_indices)
     
@@ -216,7 +249,7 @@ def process_all_units_masked_images(ensemble, selected_indices, transformed_imag
     h, w = transformed_images[0]['image'].shape[-2], transformed_images[0]['image'].shape[-1]
 
     for unit_index in tqdm(selected_indices):
-        masks = meiMaskDictionary[ensemble][unit_index]['best_shifted_masks']
+        masks = mei_mask_dictionary[ensemble][unit_index]['best_shifted_masks']
         masked_renormed_natural_images = naturalImagesDictionary[ensemble][unit_index]['images']
         all_datajoint_keys = naturalImagesDictionary[ensemble][unit_index]['datajoint_keys']
         datajoint_keys_best_mask = np.array(all_datajoint_keys[0:5000])
