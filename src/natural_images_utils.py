@@ -164,7 +164,8 @@ def initialize_masked_renormed_image_dict(ensemble, selected_indices):
     """
     return {ensemble: {unit_index: {} for unit_index in selected_indices}}
 
-def process_masked_images(unit_index, masks, masked_renormed_natural_images, models, ensemble, data_key):
+def process_masked_images(unit_index, masks, masked_renormed_natural_images, models, 
+                          ensemble, data_key, batch_size=1000, num_images=5000):
     """
     Process masked images for a single unit.
 
@@ -175,6 +176,8 @@ def process_masked_images(unit_index, masks, masked_renormed_natural_images, mod
         models (dict): Dictionary of models.
         ensemble (str): Ensemble hash.
         data_key (str): The data key.
+        batch_size (int): Maximum number of images to send through model at once.
+        num_images (int): Total number of images to process.
 
     Returns:
         dict: Dictionary containing best masks, best MEI masks, max responses, and all responses.
@@ -187,9 +190,9 @@ def process_masked_images(unit_index, masks, masked_renormed_natural_images, mod
 
     for mask_index in range(len(masks)):
         responses = []
-        for batch in range(0, 5000, 1000):
+        for batch in range(0, num_images, batch_size):
             with torch.no_grad():
-                responses.append(models[ensemble](masked_renormed_natural_images[batch:batch+1000, mask_index, ...].unsqueeze(1).cuda(), data_key=data_key)[:, unit_index])
+                responses.append(models[ensemble](masked_renormed_natural_images[batch:batch+batch_size, mask_index, ...].unsqueeze(1).cuda(), data_key=data_key)[:, unit_index])
         responses = torch.cat(responses).cpu().numpy()
         updated_best_response_indices = np.where(responses > max_responses)[0]
         max_responses[updated_best_response_indices] = responses[updated_best_response_indices]
@@ -226,7 +229,9 @@ def select_top_images(max_responses, best_masks, best_mei_masks, datajoint_keys_
         'datajoint_keys': selected_datajoint_keys
     }
 
-def process_all_units_masked_images(ensemble, selected_indices, transformed_images, mei_mask_dictionary, natural_images_dictionary, models, data_key, n_best_images_selected):
+def process_all_units_masked_images(ensemble, selected_indices, transformed_images, mei_mask_dictionary, 
+                                    natural_images_dictionary, models, data_key, n_best_images_selected, 
+                                    num_images=5000):
     """
     Process masked images for all units in an ensemble.
 
@@ -239,6 +244,7 @@ def process_all_units_masked_images(ensemble, selected_indices, transformed_imag
         models (dict): Dictionary of models.
         data_key (str): The data key.
         n_best_images_selected (int): Number of best images to select.
+        num_images (int): Number of images to be processed.
 
     Returns:
         dict: Updated masked renormed image dictionary with best masks and responses.
@@ -252,7 +258,7 @@ def process_all_units_masked_images(ensemble, selected_indices, transformed_imag
         masks = mei_mask_dictionary[ensemble][unit_index]['best_shifted_masks']
         masked_renormed_natural_images = natural_images_dictionary[ensemble][unit_index]['images']
         all_datajoint_keys = natural_images_dictionary[ensemble][unit_index]['datajoint_keys']
-        datajoint_keys_best_mask = np.array(all_datajoint_keys[0:5000])
+        datajoint_keys_best_mask = np.array(all_datajoint_keys[0:num_images])
 
         best_masks, best_mei_masks, max_responses, all_natural_image_responses = process_masked_images(
             unit_index, masks, masked_renormed_natural_images, models, ensemble, data_key
