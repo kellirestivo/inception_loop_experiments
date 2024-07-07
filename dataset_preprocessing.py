@@ -24,7 +24,7 @@ def preprocess_data(
     Args:
         config: .yaml file of paths to save dataset
         filepath (str): path to dataset
-        variable_names (list): list of data file columns 
+        variable_names (list): list of variable names to extract from the .mat file.
     Returns:
         None
     """
