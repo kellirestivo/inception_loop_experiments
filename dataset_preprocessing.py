@@ -10,6 +10,12 @@ def load_config(config_file='pickle_file_paths.yaml'):
     return config
 
 def preprocess_data(config):
+    """
+    Extract monkey ephys dataset from .mat file and save to .pickle file
+
+    Args:
+        config: .yaml file of paths to save dataset
+    """
     PATH = '/mnt/lab/users/kelli/mei/V4_SUA_closed_loop'
     pickle_paths = config['paths']['pickle_paths']
     variable_names = [
@@ -19,7 +25,7 @@ def preprocess_data(config):
         'x_grid_location', 'y_grid_location', 'relative_depth_microns', 'rf_size'
     ]
 
-        # Generate filename based on the current date
+    # Input today's filename
     todays_file = get_filename()
 
     # Process each .mat file in the directory

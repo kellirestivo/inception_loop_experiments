@@ -5,13 +5,13 @@ def process_mat_file(path, filename, variable_names):
     """
     Load and process a .mat file.
 
-    Parameters:
-    path (str): Directory path where .mat file is located.
-    filename (str): Name of the .mat file.
-    variable_names (list): List of variable names to extract from the .mat file.
+    Args:
+        path (str): Directory path where .mat file is located.
+        filename (str): Name of the .mat file.
+        variable_names (list): List of variable names to extract from the .mat file.
 
     Returns:
-    dict: Dictionary containing extracted variables.
+        dict: Dictionary containing extracted variables.
     """
 
     try:

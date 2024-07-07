@@ -3,6 +3,14 @@ import os
 
 
 def setup_configuration():
+    """
+    Set up Datajoint configuration in order to connect to database
+
+    Args:
+        None
+    Returns:
+        str: path to database stored data
+    """
     dj.config["enable_python_native_blobs"] = True
     dj.config["database.host"] = 'at-database3.ad.bcm.edu'
     dj.config['database.user'] = 'kelli'
