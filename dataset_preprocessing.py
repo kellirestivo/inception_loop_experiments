@@ -9,24 +9,27 @@ def load_config(config_file='pickle_file_paths.yaml'):
         config = yaml.safe_load(f)
     return config
 
-def preprocess_data(config, filepath='/mnt/lab/users/kelli/mei/V4_SUA_closed_loop'):
+def preprocess_data(
+        config, 
+        filepath='/mnt/lab/users/kelli/mei/V4_SUA_closed_loop',
+        variable_names = [
+        'subject_id', 'session_id', 'training_image_ids', 'training_prior_image_ids',
+        'training_responses', 'testing_image_ids', 'testing_prior_image_ids',
+        'testing_responses', 'testing_repetitions', 'unit_ids', 'electrode_nums', 
+        'x_grid_location', 'y_grid_location', 'relative_depth_microns', 'rf_size'
+    ]):
     """
     Extract monkey ephys dataset from .mat file and save to .pickle file
 
     Args:
         config: .yaml file of paths to save dataset
         filepath (str): path to dataset
+        variable_names (list): list of data file columns 
     Returns:
         None
     """
 
     pickle_paths = config['paths']['pickle_paths']
-    variable_names = [
-        'subject_id', 'session_id', 'training_image_ids', 'training_prior_image_ids',
-        'training_responses', 'testing_image_ids', 'testing_prior_image_ids',
-        'testing_responses', 'testing_repetitions', 'unit_ids', 'electrode_nums', 
-        'x_grid_location', 'y_grid_location', 'relative_depth_microns', 'rf_size'
-    ]
 
     # Input today's filename
     todays_file = get_filename()
